@@ -153,6 +153,7 @@ module Zeitwerk
         unloaded_files = Set.new
 
         autoloads.each do |abspath, (parent, cname)|
+          parent = cget(parent)
           if parent.autoload?(cname)
             unload_autoload(parent, cname)
           else
@@ -385,7 +386,7 @@ module Zeitwerk
         # For whatever reason the constant that corresponds to this namespace has
         # already been defined, we have to recurse.
         log("the namespace #{cpath(parent, cname)} already exists, descending into #{subdir}") if logger
-        set_autoloads_in_dir(subdir, cget(parent, cname))
+        set_autoloads_in_dir(subdir, [parent, cname])
       end
     end
 
@@ -428,7 +429,8 @@ module Zeitwerk
 
     # @sig (Module, Symbol, String) -> void
     private def set_autoload(parent, cname, abspath)
-      parent.autoload(cname, abspath)
+      real_parent = cget(parent)
+      real_parent.autoload(cname, abspath)
 
       if logger
         if ruby?(abspath)
@@ -442,7 +444,7 @@ module Zeitwerk
       Registry.register_autoload(self, abspath)
 
       # See why in the documentation of Zeitwerk::Registry.inceptions.
-      unless parent.autoload?(cname)
+      if parent.is_a?(Array) || !real_parent.autoload?(cname)
         Registry.register_inception(cpath(parent, cname), abspath, self)
       end
     end

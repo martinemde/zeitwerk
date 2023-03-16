@@ -103,10 +103,12 @@ module Zeitwerk::Loader::Helpers
   # @sig (Module, Symbol) -> String?
   if method(:autoload?).arity == 1
     private def strict_autoload_path(parent, cname)
+      return if parent.is_a?(Array)
       parent.autoload?(cname) if cdef?(parent, cname)
     end
   else
     private def strict_autoload_path(parent, cname)
+      return if parent.is_a?(Array)
       parent.autoload?(cname, false)
     end
   end
@@ -116,23 +118,28 @@ module Zeitwerk::Loader::Helpers
     # Symbol#name was introduced in Ruby 3.0. It returns always the same
     # frozen object, so we may save a few string allocations.
     private def cpath(parent, cname)
-      Object == parent ? cname.name : "#{real_mod_name(parent)}::#{cname.name}"
+      parent_name = parent.is_a?(Array) ? cpath(*parent) : real_mod_name(parent)
+      Object == parent ? cname.name : "#{parent_name}::#{cname.name}"
     end
   else
     private def cpath(parent, cname)
-      Object == parent ? cname.to_s : "#{real_mod_name(parent)}::#{cname}"
+      parent_name = parent.is_a?(Array) ? cpath(*parent) : real_mod_name(parent)
+      Object == parent ? cname.to_s : "#{parent_name}::#{cname}"
     end
   end
 
   # @sig (Module, Symbol) -> bool
   private def cdef?(parent, cname)
+    parent = cget(*parent) if parent.is_a?(Array)
     parent.const_defined?(cname, false)
   end
 
   # @raise [NameError]
   # @sig (Module, Symbol) -> Object
-  private def cget(parent, cname)
-    parent.const_get(cname, false)
+  private def cget(parent, cname=nil)
+    binding.pry if cname == :Purge
+    parent = cget(*parent) if parent.is_a?(Array)
+    cname ? parent.const_get(cname, false) : parent
   end
 
   # @raise [NameError]
